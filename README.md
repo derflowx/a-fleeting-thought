@@ -82,3 +82,8 @@ Potential next studies: more expressive anatomy-to-stroke correspondence, locali
 ### Flight silhouettes
 
 Flock birds orient in 3D along their velocity, bank into turns, and change silhouette through foreshortening. Their up axis stays continuous through steep climbs. Climbing wingbeats and descending glides are preserved.
+
+
+### Individual landings
+
+Bird identities determine repeatable landing personalities: quick perches, one or two extra balancing flaps, left/right facing, asymmetric wing settling and small bows. The feet remain attached to the wire, and every personality resolves to the exact glyph outline.

@@ -52,14 +52,17 @@ export function releaseMotion(initialMorphAge,age,reduced=false){
  const unfold=Math.min(1,Math.max(0,age)/(reduced?.06:.16));
  return {unfold,flight:Math.max(0,age),morphAge:Math.min(MORPH_DURATION,initialMorphAge)*(1-unfold)};
 }
-export function drawMorph(ctx,char,x,baseline,size,elapsed,phase=0,flightScale=1,flightPose=0,wingStrength=1){
+export function drawMorph(ctx,char,x,baseline,size,elapsed,phase=0,flightScale=1,flightPose=0,wingStrength=1,style={}){
  const shapes=geometry(char);ctx.save();ctx.translate(x,baseline);ctx.fillStyle='#303d35';ctx.strokeStyle='#303d35';ctx.lineWidth=.18;ctx.lineJoin='round';
  // Once all pieces share their exact destination, fill the joined outline in
  // one operation to remove antialias seams along the six internal cuts.
  if(elapsed>=MORPH_DURATION){const glyph=glyphs[char]?.rings.length?glyphs[char]:fallback;ctx.beginPath();for(const ring of glyph.rings){ring.forEach((p,i)=>{if(i===0)ctx.moveTo(p[0]*size,p[1]*size);else ctx.lineTo(p[0]*size,p[1]*size);});ctx.closePath();}ctx.fill('evenodd');ctx.restore();return;}
  shapes.forEach((rings,index)=>{const t=partProgress(elapsed,index),fold=Math.max(0,1-t),flap=(Math.sin(phase)*wingStrength-.12*(1-wingStrength))*(.20+.5*Math.abs(flightPose))*fold;ctx.beginPath();
- for(const ring of rings){ring.source.forEach((s,j)=>{const target=ring.target[j];const pose=Math.abs(flightPose)*Math.max(0,1-t),facing=flightPose<0?-1:1;let sx=mix(s[0],ring.flying[j][0]*facing,pose)*flightScale,sy=mix(s[1],ring.flying[j][1],pose)*flightScale;
- if(index<2){const glide=(1-wingStrength)*Math.abs(flightPose);sy=mix(sy,-.32*flightScale+(sy+.32*flightScale)*.28,glide);sx*=1+glide*.18;const side=index===0?-1:1;const hinge=side*.06;const a=flap*side,dx=sx-hinge,dy=sy+.30*flightScale;sx=hinge+dx*Math.cos(a)-dy*Math.sin(a);sy=-.30*flightScale+dx*Math.sin(a)+dy*Math.cos(a);}
+ for(const ring of rings){ring.source.forEach((s,j)=>{const target=ring.target[j];const pose=Math.abs(flightPose)*Math.max(0,1-t),facing=flightPose<0?-1:1;let sx=mix(s[0]*(style.facing??1),ring.flying[j][0]*facing,pose)*flightScale,sy=mix(s[1],ring.flying[j][1],pose)*flightScale;
+ if(index<2){const glide=(1-wingStrength)*Math.abs(flightPose);sy=mix(sy,-.32*flightScale+(sy+.32*flightScale)*.28,glide);sx*=1+glide*.18;const side=index===0?-1:1;const hinge=side*.06;const a=flap*side*(index===0?(style.wingBias??1):2-(style.wingBias??1)),dx=sx-hinge,dy=sy+.30*flightScale;sx=hinge+dx*Math.cos(a)-dy*Math.sin(a);sy=-.30*flightScale+dx*Math.sin(a)+dy*Math.cos(a);}
+ // A small breast/head dip pivots above the feet, never displacing the
+ // attachment point. Personality affects only the bird, not the target glyph.
+ if(index<2||index>=4){const tilt=((style.bow??0)+(index===5?(style.headTilt??0):0))*(style.facing??1)*(1-Math.abs(flightPose));const dx=sx,dy=sy+.16*flightScale;sx=dx*Math.cos(tilt)-dy*Math.sin(tilt);sy=-.16*flightScale+dx*Math.sin(tilt)+dy*Math.cos(tilt);}
  const px=mix(sx,target[0],t)*size,py=mix(sy,target[1],t)*size;if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);});ctx.closePath();}
  ctx.fill('evenodd'); // Single path per anatomical part preserves letter counters.
  });ctx.restore();

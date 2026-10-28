@@ -4,6 +4,7 @@ import {PUBLIC_ORIGIN} from './site-config.js';
 import {fitLineScale,centeredLine,smoothAdvance} from './framing.js';
 import {advanceWings} from './air.js';
 import {drawFlyingBird} from './flight-pose.js';
+import {landingCharacter,landingPerformance} from './landing-style.js';
 import {createArrival,stepArrival,createLanding,stepLanding,releaseOffsets} from './arrival.js';
 import {Flock,FLOCK_SIZE} from './flock.js';
 import {drawMorph,MORPH_DURATION,releaseMotion} from './morph.js';
@@ -19,7 +20,7 @@ const project=b=>projectPoint(b,view);
 function assignBird(l){
  if(/\s/.test(l.char)||l.bird)return;
  const b=flock.borrow();if(!b)return;
- const start=project(b),startScale=b.size*2.1*view.scale/fontSize,flight=createArrival(b);flight.y+=b.size*2.1*.30;Object.assign(l,{bird:b,sx:start.x,sy:start.y,age:0,flight,startScale,startSize:b.size*2.1});
+ const start=project(b),startScale=b.size*2.1*view.scale/fontSize,flight=createArrival(b);flight.y+=b.size*2.1*.30;Object.assign(l,{bird:b,character:landingCharacter(b),sx:start.x,sy:start.y,age:0,flight,startScale,startSize:b.size*2.1});
 }
 
 function resize(){w=innerWidth;h=innerHeight;view=createViewport(w,h);letters.forEach(l=>{l.lastTarget=null;});dpr=Math.min(devicePixelRatio||1,2);canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);sky=ctx.createLinearGradient(0,0,w*.3,h);sky.addColorStop(0,'#d6e1de');sky.addColorStop(.47,'#e4e7dc');sky.addColorStop(1,'#f0e9d8');
@@ -57,7 +58,7 @@ function release(l,delay=0){
  const x=current.x,y=current.baseline-fontSize*.4+4;
  const world=unprojectPoint({x,y},view);
  flock.returnBird(l.bird,world.x,world.y,rand(-180,180)*l.bird.motionVariation,rand(-260,-180)*l.bird.motionVariation,delay);
- departures.push({bird:l.bird,age:-delay,started:false,seed:l.bird.phase,size:fontSize,worldSize:fontSize/view.scale,char:l.char,morphAge:current.morphAge,scale:current.scale,pose:current.pose||0});
+ departures.push({bird:l.bird,age:-delay,started:false,seed:l.bird.phase,size:fontSize,worldSize:fontSize/view.scale,char:l.char,morphAge:current.morphAge,scale:current.scale,pose:current.pose||0,style:current.style});
  for(let i=0;i<4;i++)feathers.push({x,y,vx:rand(-70,70),vy:rand(-65,12),age:-delay,life:rand(1.6,3),rot:rand(0,6.28)});
 }
 
@@ -131,9 +132,9 @@ document.querySelector('#share').onclick=async()=>{
 shareNote.addEventListener('click',e=>{if(e.target===shareNote){const r=shareNote.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)shareNote.close();}});
 
 // Adapter for future speech: window.birdwire.setText(transcript, 'speech').
-window.birdwire={setText:(text,source='external')=>model.setText(text,source),getText:()=>model.text,getState:()=>({text:model.text,letters:letters.length,arriving:letters.filter(l=>(!l.landed||time-l.landTime<MORPH_DURATION)&&!/\s/.test(l.char)).length,departing:departures.length,rows:wires.length,feathers:feathers.length,population:FLOCK_SIZE,cameraScale,textBounds:letters.length?{left:letters[0].tx-letters[0].width/2,right:letters.at(-1).tx+letters.at(-1).width/2}:null,flock:flock.counts(),waiting:letters.filter(l=>!/\s/.test(l.char)&&!l.bird).length})};
-function drawAnimatedBird(item,char,x,baseline,size,age,phase,scale,pose,active){
- drawMorph(ctx,char,x,baseline,size,age,phase,scale,pose,item.bird?.wingStrength??1);
+window.birdwire={setText:(text,source='external')=>model.setText(text,source),getText:()=>model.text,getState:()=>({text:model.text,letters:letters.length,arriving:letters.filter(l=>(!l.landed||(l.render?.morphAge??0)<MORPH_DURATION)&&!/\s/.test(l.char)).length,departing:departures.length,rows:wires.length,feathers:feathers.length,population:FLOCK_SIZE,cameraScale,textBounds:letters.length?{left:letters[0].tx-letters[0].width/2,right:letters.at(-1).tx+letters.at(-1).width/2}:null,flock:flock.counts(),waiting:letters.filter(l=>!/\s/.test(l.char)&&!l.bird).length})};
+function drawAnimatedBird(item,char,x,baseline,size,age,phase,scale,pose,active,style={},wingStrength=item.bird?.wingStrength??1){
+ drawMorph(ctx,char,x,baseline,size,age,phase,scale,pose,wingStrength,style);
 }
 
 function draw(dt){
@@ -155,26 +156,28 @@ function draw(dt){
  if(!l.landed){
   if(reduced){if(l.age>=.14)Object.assign(l.flight,{x:target.x,y:target.y,vx:0,vy:0,remaining:0,landed:true});}
   else stepArrival(l.flight,target,dt,l.seed);
-  if(l.flight.landed){l.landed=true;l.landTime=time;l.landing=createLanding(l.bird.landingVariation,fontSize);wires[l.row].velocity+=(16+fontSize*.12)*l.bird.landingVariation;}
+  if(l.flight.landed){l.landed=true;l.landTime=time;l.landingPhase=l.bird.wingPhase;l.landing=createLanding(l.bird.landingVariation,fontSize);wires[l.row].velocity+=(16+fontSize*.12)*l.bird.landingVariation;}
  }
  const bounce=l.landed&&!reduced?stepLanding(l.landing,dt):0;
  const position=project(l.flight),x=l.landed?l.tx:position.x,baseline=l.landed?landingBaseline+bounce:position.y;
- const morphAge=l.landed?(reduced?MORPH_DURATION:time-l.landTime):0;
+ const landingAct=l.landed?landingPerformance(l.character,time-l.landTime,l.landingPhase):null;
+ const morphAge=l.landed?(reduced?MORPH_DURATION:landingAct.morphAge):0;
  const approach=1-l.flight.remaining,scale=l.landed?1:lerp(l.startSize*view.scale/fontSize,1,approach*approach);
  const distance=Math.hypot(target.x-l.flight.x,target.y-l.flight.y);
  const pose=l.landed?0:Math.min(1,distance/35)*Math.sign(l.flight.vx||l.tx-l.sx);
- advanceWings(l.bird,l.landed?0:l.flight.vy,dt);
- l.render={x,baseline,morphAge,scale,pose};
- drawAnimatedBird(l,l.char,x,baseline,fontSize,morphAge,l.bird.wingPhase,scale,pose,!l.landed||morphAge<MORPH_DURATION);
+ if(landingAct){l.bird.wingPhase=landingAct.phase;l.bird.wingStrength=landingAct.wingStrength;}else advanceWings(l.bird,l.flight.vy,dt);
+ const style=landingAct?.style??{facing:l.character.facing,wingBias:l.character.wingBias};
+ l.render={x,baseline,morphAge,scale,pose,style};
+ drawAnimatedBird(l,l.char,x,baseline,fontSize,morphAge,landingAct?.phase??l.bird.wingPhase,scale,pose,!l.landed||morphAge<MORPH_DURATION,style,landingAct?.wingStrength??l.bird.wingStrength);
  });
  departures=departures.filter(b=>b.bird.state==='returning');departures.forEach(b=>{b.age+=dt;
- if(b.age<0){const p=project(b.bird),heldSize=b.worldSize*view.scale;drawAnimatedBird(b,b.char,p.x,p.y+heldSize*.4-4,heldSize,b.morphAge,b.bird.wingPhase,b.scale,b.pose,false);return;}
+ if(b.age<0){const p=project(b.bird),heldSize=b.worldSize*view.scale;drawAnimatedBird(b,b.char,p.x,p.y+heldSize*.4-4,heldSize,b.morphAge,b.bird.wingPhase,b.scale,b.pose,false,b.style);return;}
  if(!b.started){b.started=true;if(wires[0])wires[0].velocity-=12;}
  const {unfold,morphAge:age}=releaseMotion(b.morphAge,b.age,reduced);
  const p=project(b.bird);
  const settling=1-Math.exp(-Math.max(0,b.age-.12)*2.5),flockSize=b.bird.size*2.1*(1+b.bird.z/650)*view.scale;
  const size=lerp(b.worldSize*view.scale,flockSize,settling);
- drawAnimatedBird(b,b.char,p.x,p.y+size*.4-4,size,age,b.bird.wingPhase,lerp(b.scale,1,unfold),lerp(b.pose,Math.sign(b.bird.vx),unfold),true);
+ drawAnimatedBird(b,b.char,p.x,p.y+size*.4-4,size,age,b.bird.wingPhase,lerp(b.scale,1,unfold),lerp(b.pose,Math.sign(b.bird.vx),unfold),true,{...b.style,bow:(b.style?.bow??0)*(1-unfold)});
  });
  feathers=feathers.filter(f=>f.age<f.life);feathers.forEach(f=>{f.age+=dt;if(f.age<0)return;f.x+=f.vx*dt+Math.sin(time*2+f.rot)*7*dt;f.vx*=Math.exp(-1.1*dt);f.vy+=22*dt;f.y+=f.vy*dt;ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.rot+Math.sin(f.age*2)*.7);ctx.globalAlpha=.88*Math.pow(1-Math.min(1,f.age/f.life),.7);ctx.strokeStyle='#303d35';ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(-3,0);ctx.quadraticCurveTo(0,-2,3,0);ctx.quadraticCurveTo(0,1,-3,0);ctx.stroke();ctx.restore();});
  ctx.globalAlpha=1;
