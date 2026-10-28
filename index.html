@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#e7e8df"><title>A fleeting thought</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<header><a class="wordmark" href="./" aria-label="A fleeting thought home">A fleeting thought</a></header>
+<main><div id="invitation"><h1>Write something.</h1></div>
+<textarea id="writing" aria-label="Your passing thought. Type to bring birds to the wire; delete to release them." autocomplete="off" autocapitalize="sentences" spellcheck="false" maxlength="360"></textarea>
+</main>
+<div id="status" aria-live="polite" class="sr-only"></div>
+<footer><div class="actions"><button id="replay" hidden>Replay ↺</button><button id="share" disabled>Share thought <span>↗</span></button></div></footer>
+<dialog id="share-note"><button id="share-close" aria-label="Close sharing">×</button><p class="eyebrow">A THOUGHT, SENT</p><h2>Let it find<br>someone.</h2><p id="share-message" role="status">Your typing, pauses and deletions, carried in a link.</p><label class="sr-only" for="share-link">Replay link</label><input id="share-link" readonly autocomplete="off"><button id="copy-link">Copy replay link ↗</button><p id="share-privacy" class="note-small">Anyone with the link can replay the writing, including deleted words. No account needed.</p><button id="new-thought">Start a new recording</button></dialog>
+<script type="module" src="app.js"></script>
+</body></html>
