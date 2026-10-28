@@ -77,3 +77,8 @@ Speech input can feed the existing boundary with `window.birdwire.setText(transc
 Selection uses the underlying native textarea; the canvas does not yet draw a selection highlight. The cable is a lightweight spring, rather than a segmented physical rope. Bird anatomy remains most perceptible during transformation; fully bird-shaped settled letterforms would be a further artistic study. Motion blur is disabled.
 
 Potential next studies: more expressive anatomy-to-stroke correspondence, localized cable waves, optional soft wing and air sounds, and a speech adapter that handles interim and final transcripts.
+
+
+### Flight silhouettes
+
+Flock birds orient in 3D along their velocity, bank into turns, and change silhouette through foreshortening. Their up axis stays continuous through steep climbs. Climbing wingbeats and descending glides are preserved.

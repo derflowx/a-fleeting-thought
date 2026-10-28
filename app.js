@@ -3,6 +3,7 @@ import {Tape,seededRandom,encodeReplay,decodeReplay,applyEdit,fitReplayToFlock} 
 import {PUBLIC_ORIGIN} from './site-config.js';
 import {fitLineScale,centeredLine,smoothAdvance} from './framing.js';
 import {advanceWings} from './air.js';
+import {drawFlyingBird} from './flight-pose.js';
 import {createArrival,stepArrival,createLanding,stepLanding,releaseOffsets} from './arrival.js';
 import {Flock,FLOCK_SIZE} from './flock.js';
 import {drawMorph,MORPH_DURATION,releaseMotion} from './morph.js';
@@ -131,7 +132,6 @@ shareNote.addEventListener('click',e=>{if(e.target===shareNote){const r=shareNot
 
 // Adapter for future speech: window.birdwire.setText(transcript, 'speech').
 window.birdwire={setText:(text,source='external')=>model.setText(text,source),getText:()=>model.text,getState:()=>({text:model.text,letters:letters.length,arriving:letters.filter(l=>(!l.landed||time-l.landTime<MORPH_DURATION)&&!/\s/.test(l.char)).length,departing:departures.length,rows:wires.length,feathers:feathers.length,population:FLOCK_SIZE,cameraScale,textBounds:letters.length?{left:letters[0].tx-letters[0].width/2,right:letters.at(-1).tx+letters.at(-1).width/2}:null,flock:flock.counts(),waiting:letters.filter(l=>!/\s/.test(l.char)&&!l.bird).length})};
-function bird(x,y,size,phase,alpha=1,rotation=0,wingStrength=1){ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.globalAlpha=alpha;ctx.strokeStyle='#394640';ctx.fillStyle='#394640';ctx.lineWidth=Math.max(.6,size*.18);ctx.lineCap='round';const flap=Math.sin(phase)*wingStrength-.12*(1-wingStrength);ctx.beginPath();ctx.moveTo(-size,flap*size*.65);ctx.quadraticCurveTo(-size*.35,-size*.3,0,size*.18);ctx.quadraticCurveTo(size*.45,-size*.3,size,flap*size*.65);ctx.stroke();if(size>3){ctx.beginPath();ctx.ellipse(0,0,size*.18,size*.4,0,0,Math.PI*2);ctx.fill();}ctx.restore();}
 function drawAnimatedBird(item,char,x,baseline,size,age,phase,scale,pose,active){
  drawMorph(ctx,char,x,baseline,size,age,phase,scale,pose,item.bird?.wingStrength??1);
 }
@@ -144,7 +144,7 @@ function draw(dt){
  // Broad, almost invisible washes give the paper sky a little depth.
  let wash=ctx.createRadialGradient(w*.15,h*.75,0,w*.15,h*.75,w*.75);wash.addColorStop(0,'#fff7df44');wash.addColorStop(1,'#fff7df00');ctx.fillStyle=wash;ctx.fillRect(0,0,w,h);
  ctx.fillStyle=grain;ctx.fillRect(0,0,w,h);
- flock.birds.forEach(b=>{if(b.state!=='flock')return;const p=project(b),depth=1+b.z/650;bird(p.x,p.y,b.size*depth*view.scale,b.wingPhase,.48+b.size*.065,Math.atan2(b.vy,b.vx)*.3,b.wingStrength);});
+ flock.birds.forEach(b=>{if(b.state!=='flock')return;const p=project(b),depth=1+b.z/650;drawFlyingBird(ctx,p.x,p.y,b.size*depth*view.scale,b.flightPose,b.wingPhase,.48+b.size*.065,b.wingStrength);});
  wires.forEach((wire,row)=>{wire.velocity+=(-wire.energy*55-wire.velocity*4.5)*dt;wire.energy+=wire.velocity*dt;
  ctx.beginPath();for(let x=-10;x<=w+10;x+=8){const y=wireY(x,row);if(x===-10)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.strokeStyle='#414c426c';ctx.lineWidth=.8;ctx.stroke();
  ctx.beginPath();ctx.moveTo(0,wire.y+1.3);ctx.quadraticCurveTo(w*.5,wire.y+wireSag(w/2)*2+wire.energy*2,w,wire.y+1.3);ctx.strokeStyle='#7b806419';ctx.lineWidth=1.8;ctx.stroke();});

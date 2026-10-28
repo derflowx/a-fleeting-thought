@@ -1,3 +1,4 @@
+import {advanceFlightPose} from './flight-pose.js';
 import {internalFlow} from './air.js';
 export const FLOCK_SIZE=99;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -38,5 +39,6 @@ export class Flock {
    b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
    if(dist<85&&b.returnAge>.35){b.state='flock';const s=Math.hypot(b.vx,b.vy,b.vz)||1;if(s>120){b.vx*=120/s;b.vy*=120/s;b.vz*=120/s;}}
   }
+  for(const b of this.birds)if(b.state==='flock'||(b.state==='returning'&&!(b.returnDelay>0)))advanceFlightPose(b,dt);
  }
 }
